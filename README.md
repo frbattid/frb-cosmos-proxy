@@ -56,9 +56,10 @@ Then, clone the Cosmos repository somewhere of your ownership:
 
     $ git clone https://github.com/frbattid/frb-cosmos-proxy.git
     
-Change to the `frb-cosmos-proxy` directory and execute the installation command:
+Change to the `frb-cosmos-proxy` directory, change the branch from `master` to `develop` and execute the installation command:
 
     $ cd frb-cosmos-proxy
+    $ git checkout develop
     $ npm install
     
 That must download all the dependencies under a `node_modules` directory.
