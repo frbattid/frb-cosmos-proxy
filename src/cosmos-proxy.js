@@ -31,6 +31,16 @@ var http = require('http'),
 logger.info('Starting cosmos-proxy in ' + conf.host + ':' + conf.port);
 var proxy = httpProxy.createProxyServer({});
 
+function isWhiteListed(list, path) {
+    for(var i = 0; i < list.length; i++) {
+        if ('/webhdfs/v1/user/' + list[i] == path) {
+            return true;
+        } // if
+    } // for
+
+    return false;
+} // isWhiteListed
+
 http.createServer(function (req, res) {
     var path = url.parse(req.url).pathname;
     var token = req.headers['x-auth-token'];
@@ -49,16 +59,24 @@ http.createServer(function (req, res) {
                 res.end('Authentication error: ' + result);
             } else {
                 logger.info('Authentication OK: ' + result);
+                var whiteListed = isWhiteListed(conf.public_path_list,path);
                 var user = json['id'];
 
-                if (path.indexOf('/webhdfs/v1/user/' + user) == 0) {
-                    logger.info('Authorization OK: user ' + user + ' is allowed to access /webhdfs/v1/user/' + user);
+                if (whiteListed) {
+                    logger.info('Authorization OK: user ' + user + ' is allowed to access ' + path );
                     logger.info('Redirecting to http://' + conf.target.host + ':' + conf.target.port);
-                    proxy.web(req, res, { target: 'http://' + conf.target.host + ':' + conf.target.port }); // forward to the target server
+                    proxy.web(req, res, { target: 'http://' + conf.target.host + ':' + conf.target.port });
                 } else {
-                    logger.error('Authorization error: user ' + user + ' is not allowed to access /webhdfs/v1/user/' + user);
-                    res.writeHead(400, { 'Content-Type': 'text/plain' });
-                    res.end('Authorization error: user ' + user + ' cannot access ' + path);
+
+                    if (path.indexOf('/webhdfs/v1/user/' + user) == 0) {
+                        logger.info('Authorization OK: user ' + user + ' is allowed to access ' + path);
+                        logger.info('Redirecting to http://' + conf.target.host + ':' + conf.target.port);
+                        proxy.web(req, res, {target: 'http://' + conf.target.host + ':' + conf.target.port}); // forward to the target server
+                    } else {
+                        logger.error('Authorization error: user ' + user + ' is not allowed to access ' + path);
+                        res.writeHead(400, {'Content-Type': 'text/plain'});
+                        res.end('Authorization error: user ' + user + ' cannot access ' + path);
+                    } // if else
                 } // if else
             } // if else
         } // if else

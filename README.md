@@ -42,7 +42,7 @@ Start by creating, if not yet created, a Unix user named `cosmos-proxy`; it is n
 
     $ sudo useradd cosmos-proxy
     $ sudo passwd cosmos-proxy <choose_a_password>
-    
+
 While you are a sudoer user, create a folder for saving the cosmos-proxy log traces under a path of your choice, typically `/var/log/cosmos/cosmos-proxy`, and set `cosmos-proxy` as the owner:
 
     $ sudo mkdir -p /var/log/cosmos/cosmos-proxy
@@ -55,13 +55,13 @@ Now, change to the new fresh `cosmos-proxy` user:
 Then, clone the Cosmos repository somewhere of your ownership:
 
     $ git clone https://github.com/frbattid/frb-cosmos-proxy.git
-    
+
 Change to the `frb-cosmos-proxy` directory, change the branch from `master` to `develop` and execute the installation command:
 
     $ cd frb-cosmos-proxy
     $ git checkout develop
     $ npm install
-    
+
 That must download all the dependencies under a `node_modules` directory.
 
 [Top](#top)
@@ -75,13 +75,14 @@ To be done.
 frb-cosmos-proxy is configured through a JSON file. These are the available parameters:
 
 * **host**: FQDN or IP address of the host running the proxy.
-* **port**: TCP listening port for incomming proxied requests.
+* **port**: TCP listening port for incoming proxied requests.
 * **target**:
     * **host**: FQDN or IP address of the host running the real service.
     * **port**: TCP listening port of the real service.
 * **idm**:
     * **host**: FQDN or IP address where the Identity Manager runs. Do not write it in URL form!
     * **port**: Port where the Identity Manager listens for requests. Typically 443.
+* **public_path_list**: list of public path can be reached for all users.
 * **log**:
     * **file_name**: path of the file where the log traces will be saved in a daily rotation basis. This file must be within the logging folder owned by the the user `cosmos-auth`.
     * **date_pattern**: data pattern to be appended to the log file name when the log file is rotated.
@@ -92,17 +93,17 @@ frb-cosmos-proxy is configured through a JSON file. These are the available para
 The PEP proxy implemented by frb-cosmos-proxy is run as (assuming your current directory is `frb-cosmos-proxy`):
 
     $ npm start
-    
+
 If everything goes well, you should be able to see in the logs at `/var/log/cosmos/cosmos-proxy`:
 
     {"level":"info","message":"Starting cosmos-proxy in 0.0.0.0:14000","timestamp":"2016-07-14T11:48:10.968Z"}
-    
+
 [Top](#top)
 
 ##<a name="usage"></a>Usage
 Use frb-cosmos-proxy to protect any Cosmos Http based resource.
 
-For instance, if aiming to protect WebHDFS simply re-configure the service for running in an alternative port different than the default one, e.g. TCP/41000 instead or TCP/14000. Then, configure the proxy for listening in the original WebHDFS port, i.e. TCP/14000 and specify the new target port, i.e. TCP/41000. From here on, all the requests sent to the WebHDFS service will be really sent to the proxy, attaching the required `X-Auth-Token` for authenitcation and authorization purposes:
+For instance, if aiming to protect WebHDFS simply re-configure the service for running in an alternative port different than the default one, e.g. TCP/41000 instead or TCP/14000. Then, configure the proxy for listening in the original WebHDFS port, i.e. TCP/14000 and specify the new target port, i.e. TCP/41000. From here on, all the requests sent to the WebHDFS service will be really sent to the proxy, attaching the required `X-Auth-Token` for authentication and authorization purposes:
 
     $ curl -X GET "http://storage.cosmos.lab.fiware.org:14000/webhdfs/v1/user/frb?op=liststatus&user.name=frb" -H "X-Auth-Token: mytoken"
     "FileStatuses":{"FileStatus":[{"pathSuffix":".Trash","type":"DIRECTORY","length":0,"owner":"frb","group":"frb","permission":"700","accessTime":0,"modificationTime":1468519200094,"blockSize":0,"replication":0},{"pathSuffix":...
@@ -111,8 +112,8 @@ You may have a look on the proxy and see how authentication and authorization ha
 
     {"level":"info","message":"Authentication OK: {\"organizations\": [], \"displayName\": \"frb\", \"roles\": [{\"name\": \"provider\", \"id\": \"106\"}], \"app_id\": \"4d1af2eec3754099a4f8dc86bf735068\", \"email\": \"frb@tid.es\", \"id\": \"frb\"}","timestamp":"2016-07-14T11:48:15.332Z"}
     {"level":"info","message":"Authorization OK: user frb is allowed to access /webhdfs/v1/user/frb","timestamp":"2016-07-14T11:48:15.332Z"}
-    {"level":"info","message":"Redirecting to http://0.0.0.0:41000","timestamp":"2016-07-14T11:48:15.332Z"} 
- 
+    {"level":"info","message":"Redirecting to http://0.0.0.0:41000","timestamp":"2016-07-14T11:48:15.332Z"}
+
 [Top](#top)
 
 ##<a name="administration"></a>Administration
@@ -125,7 +126,7 @@ Logging traces are typically saved under `/var/log/cosmos/cosmos-proxy`. These t
 Logging levels follow this hierarchy:
 
     debug < info < warn < error < fatal
-    
+
 Within the log it is expected to find many `info` messages, and a few of `warn` or `error` types. Of special interest are the errors:
 
 * ***Authentication error***: The user could not be authenticated either because the token is not valid, either because the communication with the Keyrock Identity Manager is down.
