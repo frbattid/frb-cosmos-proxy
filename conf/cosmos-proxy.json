@@ -9,7 +9,7 @@
     "host": "account.lab.fiware.org",
     "port": "443"
   },
-  "public_path_list" : [
+  "public_paths_list" : [
     "opendata",
     "public"
   ],

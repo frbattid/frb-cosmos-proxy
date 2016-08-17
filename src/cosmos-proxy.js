@@ -59,7 +59,7 @@ http.createServer(function (req, res) {
                 res.end('Authentication error: ' + result);
             } else {
                 logger.info('Authentication OK: ' + result);
-                var whiteListed = isWhiteListed(conf.public_path_list,path);
+                var whiteListed = isWhiteListed(conf.public_paths_list,path);
                 var user = json['id'];
 
                 if (whiteListed) {
@@ -82,4 +82,3 @@ http.createServer(function (req, res) {
         } // if else
     });
 }).listen(conf.port);
-
