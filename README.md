@@ -81,8 +81,8 @@ frb-cosmos-proxy is configured through a JSON file. These are the available para
     * **port**: TCP listening port of the real service.
 * **idm**:
     * **host**: FQDN or IP address where the Identity Manager runs. Do not write it in URL form!
-    * **port**: Port where the Identity Manager listens for requests. Typically 443.
-* **public_path_list**: list of public path can be reached for all users.
+    * **port**: port where the Identity Manager listens for requests. Typically 443.
+* **public_paths_list**: paths can be reached for all users.
 * **log**:
     * **file_name**: path of the file where the log traces will be saved in a daily rotation basis. This file must be within the logging folder owned by the the user `cosmos-auth`.
     * **date_pattern**: data pattern to be appended to the log file name when the log file is rotated.
