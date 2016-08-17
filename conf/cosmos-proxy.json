@@ -9,6 +9,10 @@
     "host": "account.lab.fiware.org",
     "port": "443"
   },
+  "public_paths_list" : [
+    "opendata",
+    "public"
+  ],
   "log": {
     "file_name": "/var/log/cosmos/cosmos-proxy/cosmos-proxy.log",
     "date_pattern": ".dd-MM-yyyy"
