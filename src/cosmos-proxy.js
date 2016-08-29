@@ -67,8 +67,11 @@ http.createServer(function (req, res) {
                     logger.info('Redirecting to http://' + conf.target.host + ':' + conf.target.port);
                     proxy.web(req, res, { target: 'http://' + conf.target.host + ':' + conf.target.port });
                 } else {
-
-                    if (path.indexOf('/webhdfs/v1/user/' + user) == 0) {
+                    if (user === conf.superuser) {
+                        logger.info('Authorization OK: user ' + user + ' is allowed to access ' + path);
+                        logger.info('Redirecting to http://' + conf.target.host + ':' + conf.target.port);
+                        proxy.web(req, res, {target: 'http://' + conf.target.host + ':' + conf.target.port}); // forward to the target server
+                    } else if (path.indexOf('/webhdfs/v1/user/' + user) == 0) {
                         logger.info('Authorization OK: user ' + user + ' is allowed to access ' + path);
                         logger.info('Redirecting to http://' + conf.target.host + ':' + conf.target.port);
                         proxy.web(req, res, {target: 'http://' + conf.target.host + ':' + conf.target.port}); // forward to the target server
