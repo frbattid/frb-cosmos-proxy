@@ -13,6 +13,7 @@
     "opendata",
     "public"
   ],
+  "superuser": "hdfs",
   "log": {
     "file_name": "/var/log/cosmos/cosmos-proxy/cosmos-proxy.log",
     "date_pattern": ".dd-MM-yyyy"
