@@ -1,3 +1,4 @@
 - [feature] Create an initial version of the PEP Http proxy for Cosmos (#1)
 - [hardening] Add branch changing step in installation document (#7)
 - [hardening] Add public paths list in configuration (#4)
+- [feature] Add configurable superuser (#10)
