@@ -30,6 +30,7 @@ var http = require('http'),
 
 logger.info('Starting cosmos-proxy in ' + conf.host + ':' + conf.port);
 var proxy = httpProxy.createProxyServer({});
+var cache = new Map();
 
 function isWhiteListed(list, path) {
     for(var i = 0; i < list.length; i++) {
@@ -41,47 +42,84 @@ function isWhiteListed(list, path) {
     return false;
 } // isWhiteListed
 
+function isCacheEmpty() {
+    return cache.length == 0;
+} // isCacheEmpty
+
+function isInCache(user) {
+    if (!isCacheEmpty()) {
+        var cacheUser = cache.get(user);
+        if (cacheUser != null) {
+            return true;
+        } // if
+    } // if
+    return false;
+} // isInCache
+
+function isUserToken(user, token) {
+    var cachedToken = cache.get(user);
+    return cachedToken == token;
+} // isUserToken
+
+function isCacheAuthenticated(username, token) {
+    if (isInCache(username)) {
+        if (isUserToken(username, token)) {
+            return true;
+        } // if
+    } // if
+    return false;
+} // isCacheAuthenticated
+
 http.createServer(function (req, res) {
     var path = url.parse(req.url).pathname;
+    var splitPath = path.split('/');
+    var username = splitPath[splitPath.length-1];
     var token = req.headers['x-auth-token'];
 
-    idm.authenticate(token, function(error, result) {
-        if (error) {
-            logger.error('Authentication error: ' + error);
-            res.writeHead(400, { 'Content-Type': 'text/plain' });
-            res.end('Authentication error: ' + error);
-        } else {
-            var json = JSON.parse(result);
-
-            if (json['error']) {
-                logger.error('Authentication error: ' + result);
+    if (isCacheAuthenticated(username, token)) {
+        logger.info('Authorization OK: user ' + username + ' is allowed to access ' + path);
+        logger.info('Redirecting to http://' + conf.target.host + ':' + conf.target.port);
+        proxy.web(req, res, {target: 'http://' + conf.target.host + ':' + conf.target.port});
+    } else {
+        idm.authenticate(token, function(error, result) {
+            if (error) {
+                logger.error('Authentication error: ' + error);
                 res.writeHead(400, { 'Content-Type': 'text/plain' });
-                res.end('Authentication error: ' + result);
+                res.end('Authentication error: ' + error);
             } else {
-                logger.info('Authentication OK: ' + result);
-                var whiteListed = isWhiteListed(conf.public_paths_list,path);
-                var user = json['id'];
+                var json = JSON.parse(result);
 
-                if (whiteListed) {
-                    logger.info('Authorization OK: user ' + user + ' is allowed to access ' + path );
-                    logger.info('Redirecting to http://' + conf.target.host + ':' + conf.target.port);
-                    proxy.web(req, res, { target: 'http://' + conf.target.host + ':' + conf.target.port });
+                if (json['error']) {
+                    logger.error('Authentication error: ' + result);
+                    res.writeHead(400, { 'Content-Type': 'text/plain' });
+                    res.end('Authentication error: ' + result);
                 } else {
-                    if (user === conf.superuser) {
-                        logger.info('Authorization OK: user ' + user + ' is allowed to access ' + path);
+                    var user = json['id'];
+                    logger.info('Authentication OK: ' + result);
+                    cache.set(user, token);
+                    var whiteListed = isWhiteListed(conf.public_paths_list,path);
+
+                    if (whiteListed) {
+                        logger.info('Authorization OK: user ' + user + ' is allowed to access ' + path );
                         logger.info('Redirecting to http://' + conf.target.host + ':' + conf.target.port);
-                        proxy.web(req, res, {target: 'http://' + conf.target.host + ':' + conf.target.port}); // forward to the target server
-                    } else if (path.indexOf('/webhdfs/v1/user/' + user) == 0) {
-                        logger.info('Authorization OK: user ' + user + ' is allowed to access ' + path);
-                        logger.info('Redirecting to http://' + conf.target.host + ':' + conf.target.port);
-                        proxy.web(req, res, {target: 'http://' + conf.target.host + ':' + conf.target.port}); // forward to the target server
+                        proxy.web(req, res, { target: 'http://' + conf.target.host + ':' + conf.target.port });
                     } else {
-                        logger.error('Authorization error: user ' + user + ' is not allowed to access ' + path);
-                        res.writeHead(400, {'Content-Type': 'text/plain'});
-                        res.end('Authorization error: user ' + user + ' cannot access ' + path);
+                        if (user === conf.superuser) {
+                            logger.info('Authorization OK: user ' + user + ' is allowed to access ' + path);
+                            logger.info('Redirecting to http://' + conf.target.host + ':' + conf.target.port);
+                            proxy.web(req, res, {target: 'http://' + conf.target.host + ':' + conf.target.port}); // forward to the target server
+                        } else if (path.indexOf('/webhdfs/v1/user/' + user) == 0) {
+                            logger.info('Authorization OK: user ' + user + ' is allowed to access ' + path);
+                            logger.info('Redirecting to http://' + conf.target.host + ':' + conf.target.port);
+                            proxy.web(req, res, {target: 'http://' + conf.target.host + ':' + conf.target.port}); // forward to the target server
+                        } else {
+                            logger.error('Authorization error: user ' + user + ' is not allowed to access ' + path);
+                            res.writeHead(400, {'Content-Type': 'text/plain'});
+                            res.end('Authorization error: user ' + user + ' cannot access ' + path);
+                        } // if else
                     } // if else
                 } // if else
             } // if else
-        } // if else
-    });
+        });
+    }
 }).listen(conf.port);
