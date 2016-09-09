@@ -27,10 +27,30 @@ var http = require('http'),
     idm = require('./idm.js'),
     logger = require('./logger.js'),
     conf = require('../conf/cosmos-proxy.json');
+    fs = require('fs');
 
 logger.info('Starting cosmos-proxy in ' + conf.host + ':' + conf.port);
 var proxy = httpProxy.createProxyServer({});
-var cache = new Map();
+var cache = [];
+var pathToFile = conf.cache_file;
+
+if (isCacheEmpty()) {
+    if (fileExists(pathToFile)) {
+        if (!isEmptyFile()) {
+            cache = JSON.parse(fs.readFileSync(pathToFile, 'utf8'));
+            logger.info('Loading cache from cache-dump file');
+        } else {
+            logger.info('Empty \'cache-dump\' file. Starting an empty cache.');
+        } // if else
+    } else {
+        try {
+            fs.closeSync(fs.openSync(pathToFile,'w'));
+            logger.info('\'cache-dump\' file not found. Starting an empty cache.');
+        } catch (e) {
+            logger.info('Cannot access to \'/etc/cosmos/cosmos-proxy\'. Starting cosmos-proxy without file support.');
+        } // try catch
+    } // if else
+} // if
 
 function isWhiteListed(list, path) {
     for(var i = 0; i < list.length; i++) {
@@ -42,44 +62,103 @@ function isWhiteListed(list, path) {
     return false;
 } // isWhiteListed
 
+function isEmptyFile() {
+    var contentFile = fs.readFileSync(pathToFile);
+    return (contentFile.length == 0);
+} // isEmptyFile
+
 function isCacheEmpty() {
-    return cache.length == 0;
+    return (cache == null || cache.length == undefined || cache.length == 0);
 } // isCacheEmpty
 
-function isInCache(user) {
+function isInCache(reqUser) {
     if (!isCacheEmpty()) {
-        var cacheUser = cache.get(user);
-        if (cacheUser != null) {
-            return true;
-        } // if
+        for (var i=0; i<cache.length; i++) {
+            for (var key in cache[i]) {
+                if (cache[i].hasOwnProperty(key)) {
+                    if ((key === 'user') && (cache[i][key] === reqUser)) {
+                        return true;
+                    } // if
+                } // if
+            } // for
+        } // for
     } // if
     return false;
 } // isInCache
 
-function isUserToken(user, token) {
-    var cachedToken = cache.get(user);
-    return cachedToken == token;
-} // isUserToken
+function isUsersToken(reqUser, token) {
+    var isCachedUser = false;
+    if (!isCacheEmpty()) {
+        for (var i=0; i<cache.length; i++) {
+            for (var key in cache[i]) {
+                if (cache[i].hasOwnProperty(key)) {
+                    if ((key === 'user') && (cache[i][key] === reqUser)) {
+                        isCachedUser = true;
+                    } // if
+                    if ((isCachedUser) && (key == 'token') && (cache[i][key] === token)) {
+                        return true;
+                    }
+                } // if
+            } // for
+            isCachedUser = false;
+        } // for
+    } // if
+    return false;
+} // isInCache
 
-function isCacheAuthenticated(username, token) {
-    if (isInCache(username)) {
-        if (isUserToken(username, token)) {
+function isCacheAuthenticated(reqUser, token) {
+    if (isInCache(reqUser)) {
+        if (isUsersToken(reqUser, token)) {
             return true;
         } // if
     } // if
     return false;
 } // isCacheAuthenticated
 
+function updateCacheFile(cache) {
+    fs.writeFileSync(pathToFile,'[' + cache + ']');
+} // updateFileCache
+
+function fileExists(file) {
+    try {
+        fs.accessSync(file);
+        return true;
+    } catch (e) {
+        return false;
+    } // try catch
+} // fileExists
+
+function isAuthorized(username, path) {
+    var whiteListed = isWhiteListed(conf.public_paths_list, path);
+    if (whiteListed) {
+        return true;
+    } else {
+        logger.info(username + '===' + conf.superuser);
+        if (username === conf.superuser) {
+            return true;
+        } else {
+            return (path.indexOf('/webhdfs/v1/user/' + username) === 0);
+        } // if else
+    } // if else
+} // isAuthorized
+
 http.createServer(function (req, res) {
     var path = url.parse(req.url).pathname;
-    var splitPath = path.split('/');
-    var username = splitPath[splitPath.length-1];
+    var reqUser = url.parse(req.url, true).query['user.name'];
     var token = req.headers['x-auth-token'];
 
-    if (isCacheAuthenticated(username, token)) {
-        logger.info('Authorization OK: user ' + username + ' is allowed to access ' + path);
-        logger.info('Redirecting to http://' + conf.target.host + ':' + conf.target.port);
-        proxy.web(req, res, {target: 'http://' + conf.target.host + ':' + conf.target.port});
+    logger.info(reqUser + 'is trying to access to ' + path + ' with the token ' + token + '......');
+
+    if (isCacheAuthenticated(reqUser, token)) {
+        if (isAuthorized(reqUser, path)) {
+            logger.info('Authorization OK: user ' + reqUser + ' is allowed to access ' + path);
+            logger.info('Redirecting to http://' + conf.target.host + ':' + conf.target.port);
+            proxy.web(req, res, {target: 'http://' + conf.target.host + ':' + conf.target.port});
+        } else {
+            logger.error('Authorization error: user ' + reqUser + ' is not allowed to access ' + path);
+            res.writeHead(400, {'Content-Type': 'text/plain'});
+            res.end('Authorization error: user ' + reqUser + ' cannot access ' + path);
+        } // if else
     } else {
         idm.authenticate(token, function(error, result) {
             if (error) {
@@ -90,32 +169,32 @@ http.createServer(function (req, res) {
                 var json = JSON.parse(result);
 
                 if (json['error']) {
-                    logger.error('Authentication error: ' + result);
+                    // Changing the message due to idm returns a 'Unauthorized' in a authentication check
+                    var jsonString = JSON.stringify(result);
+                    var newResult = JSON.parse(jsonString.replace('Unauthorized','Not authenticated'));
+                    logger.error('Authentication error: ' + newResult);
                     res.writeHead(400, { 'Content-Type': 'text/plain' });
-                    res.end('Authentication error: ' + result);
+                    res.end('Authentication error: ' + newResult);
                 } else {
-                    var user = json['id'];
-                    logger.info('Authentication OK: ' + result);
-                    cache.set(user, token);
-                    var whiteListed = isWhiteListed(conf.public_paths_list,path);
-
-                    if (whiteListed) {
-                        logger.info('Authorization OK: user ' + user + ' is allowed to access ' + path );
-                        logger.info('Redirecting to http://' + conf.target.host + ':' + conf.target.port);
-                        proxy.web(req, res, { target: 'http://' + conf.target.host + ':' + conf.target.port });
+                    var idmUser = json['id'];
+                    if (idmUser !== reqUser) {
+                        logger.error('Authentication error: ' + result);
+                        res.writeHead(400, { 'Content-Type': 'text/plain' });
+                        res.end('Authentication error: ' + result);
                     } else {
-                        if (user === conf.superuser) {
-                            logger.info('Authorization OK: user ' + user + ' is allowed to access ' + path);
+                        logger.info('Authentication OK: ' + result);
+                        var newValue = '{"user":"' + idmUser + '","token":"' + token + '"}';
+                        cache.push(newValue);
+                        updateCacheFile(cache);
+
+                        if (isAuthorized(idmUser, path)) {
+                            logger.info('Authorization OK: user ' + idmUser + ' is allowed to access ' + path);
                             logger.info('Redirecting to http://' + conf.target.host + ':' + conf.target.port);
-                            proxy.web(req, res, {target: 'http://' + conf.target.host + ':' + conf.target.port}); // forward to the target server
-                        } else if (path.indexOf('/webhdfs/v1/user/' + user) == 0) {
-                            logger.info('Authorization OK: user ' + user + ' is allowed to access ' + path);
-                            logger.info('Redirecting to http://' + conf.target.host + ':' + conf.target.port);
-                            proxy.web(req, res, {target: 'http://' + conf.target.host + ':' + conf.target.port}); // forward to the target server
+                            proxy.web(req, res, {target: 'http://' + conf.target.host + ':' + conf.target.port});
                         } else {
-                            logger.error('Authorization error: user ' + user + ' is not allowed to access ' + path);
+                            logger.error('Authorization error: user ' + idmUser + ' is not allowed to access ' + path);
                             res.writeHead(400, {'Content-Type': 'text/plain'});
-                            res.end('Authorization error: user ' + user + ' cannot access ' + path);
+                            res.end('Authorization error: user ' + idmUser + ' cannot access ' + path);
                         } // if else
                     } // if else
                 } // if else
