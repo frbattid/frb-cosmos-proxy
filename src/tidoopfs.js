@@ -6,7 +6,7 @@
  * frb-cosmos-proxy is free software: you can redistribute it and/or modify it under the terms of the GNU Affero
  * General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your
  * option) any later version.
- * frb-cosmos-proxy is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the
+ * frb-cosmos-proy is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the
  * implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License
  * for more details.
  *
@@ -18,43 +18,27 @@
  */
 
 /**
- *
- * Author: frbattid
+ * Author: pcoello25
  */
 
-// Module dependencies
-var config = require('../conf/cosmos-proxy.json');
-var winston = require('winston');
+var fs = require('fs'),
+    pathToFile = require('../conf/cosmos-proxy.json').cache_file;
 
-// Global variables
-var logFileName = config.log.file_name;
-var logDatePattern = config.log.data_pattern;
+function isEmptyFile() {
+    var contentFile = fs.readFileSync(pathToFile);
+    return (contentFile.length == 0);
+} // isEmptyFile
 
-// Winston configuration
-winston.add(winston.transports.DailyRotateFile, {
-    filename: logFileName,
-    datePattern: logDatePattern
-});
-
-function info(message) {
-    winston.info(message);
-} // info
-
-function error(message) {
-    winston.error(message);
-} // error
-
-function warn(message) {
-    winston.warn(message);
-} // warn
-
-function debug(message) {
-    winston.debug(message);
-} // debug
+function fileExists() {
+    try {
+        fs.accessSync(pathToFile);
+        return true;
+    } catch (e) {
+        return false;
+    } // try catch
+} // fileExists
 
 module.exports = {
-    info: info,
-    error: error,
-    warn: warn,
-    debug: debug
+    isEmptyFile: isEmptyFile,
+    fileExists: fileExists
 } // module.exports

@@ -48,6 +48,10 @@ While you are a sudoer user, create a folder for saving the cosmos-proxy log tra
     $ sudo mkdir -p /var/log/cosmos/cosmos-proxy
     $ sudo chown cosmos-proxy:cosmos-proxy /var/log/cosmos/cosmos-proxy
 
+Additionally, while you are a sudo user, create a folder for store the cache file that will provide the pairs `user:token` if proxy shutdown.
+
+    $ sudo mkdir -p /etc/cosmos/cosmos-proxy
+
 Now, change to the new fresh `cosmos-proxy` user:
 
     $ su - cosmos-proxy

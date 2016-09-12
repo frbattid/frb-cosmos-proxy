@@ -17,5 +17,6 @@
   "log": {
     "file_name": "/var/log/cosmos/cosmos-proxy/cosmos-proxy.log",
     "date_pattern": ".dd-MM-yyyy"
-  }
+  },
+  "cache_file": "/etc/cosmos/cosmos-proxy/cache-dump.json"
 }
