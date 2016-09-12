@@ -23,59 +23,33 @@
 
 var fs = require('fs'),
     cache = [],
-    conf = require('../conf/cosmos-proxy.json');
-
-var pathToFile = conf.cache_file;
+    pathToFile = require('../conf/cosmos-proxy.json').cache_file;
 
 function createEmptyFileCache() {
-    return fs.closeSync(fs.openSync(pathToFile,'w'));
+    return fs.closeSync(fs.openSync(pathToFile, 'w'));
 } // createEmptyCache
 
 function isCacheEmpty() {
     return (cache == null || cache.length == undefined || cache.length == 0);
 } // isCacheEmpty
 
-function isInCache(reqUser) {
-    if (!isCacheEmpty()) {
-        for (var i=0; i<cache.length; i++) {
-            for (var key in cache[i]) {
-                if (cache[i].hasOwnProperty(key)) {
-                    if ((key === 'user') && (cache[i][key] === reqUser)) {
-                        return true;
-                    } // if
-                } // if
-            } // for
-        } // for
-    } // if
-    return false;
-} // isInCache
-
 function isUsersToken(reqUser, token) {
-    var isCachedUser = false;
     if (!isCacheEmpty()) {
-        for (var i=0; i<cache.length; i++) {
-            for (var key in cache[i]) {
-                if (cache[i].hasOwnProperty(key)) {
-                    if ((key === 'user') && (cache[i][key] === reqUser)) {
-                        isCachedUser = true;
-                    } // if
-                    if ((isCachedUser) && (key == 'token') && (cache[i][key] === token)) {
-                        return true;
-                    }
-                } // if
-            } // for
-            isCachedUser = false;
+        for (var i = 0; i < cache.length; i++) {
+            if ((cache[i]['user'] === reqUser) && (cache[i]['token'] === token)) {
+                return true;
+            } // if
         } // for
     } // if
+
     return false;
 } // isInCache
 
 function isCacheAuthenticated(reqUser, token) {
-    if (isInCache(reqUser)) {
-        if (isUsersToken(reqUser, token)) {
-            return true;
-        } // if
+    if (isUsersToken(reqUser, token)) {
+        return true;
     } // if
+
     return false;
 } // isCacheAuthenticated
 

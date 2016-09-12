@@ -22,9 +22,7 @@
  */
 
 var fs = require('fs'),
-    conf = require('../conf/cosmos-proxy.json');
-
-var pathToFile = conf.cache_file;
+    pathToFile = require('../conf/cosmos-proxy.json').cache_file;
 
 function isEmptyFile() {
     var contentFile = fs.readFileSync(pathToFile);

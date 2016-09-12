@@ -55,4 +55,3 @@ function authenticate(token, callback) {
 module.exports = {
     authenticate: authenticate
 } // module.exports
-

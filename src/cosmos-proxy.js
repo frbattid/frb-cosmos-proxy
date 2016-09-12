@@ -33,6 +33,7 @@ var http = require('http'),
 logger.info('Starting cosmos-proxy in ' + conf.host + ':' + conf.port);
 var proxy = httpProxy.createProxyServer({});
 
+// Unnecessary, but do not disturb
 if (cache.isCacheEmpty()) {
     if (tidoopfs.fileExists()) {
         if (!tidoopfs.isEmptyFile()) {
@@ -63,6 +64,7 @@ function isWhiteListed(list, path) {
 
 function isAuthorized(username, path) {
     var whiteListed = isWhiteListed(conf.public_paths_list, path);
+
     if (whiteListed) {
         return true;
     } else {
@@ -79,7 +81,7 @@ http.createServer(function (req, res) {
     var reqUser = url.parse(req.url, true).query['user.name'];
     var token = req.headers['x-auth-token'];
 
-    logger.info(reqUser + ' is trying to access to ' + path + ' with the token ' + token + '......');
+    logger.info(reqUser + ' is trying to access to ' + path + ' with the token ' + token);
 
     if (cache.isCacheAuthenticated(reqUser, token)) {
         if (isAuthorized(reqUser, path)) {
@@ -109,6 +111,7 @@ http.createServer(function (req, res) {
                     res.end('Authentication error: ' + newResult);
                 } else {
                     var idmUser = json['id'];
+                    
                     if (idmUser !== reqUser) {
                         var errorMsg =  JSON.stringify('{\"error\": {\"message\": \"User doesn\'t match the provided ' +
                             'token\",\"code\": 404, \"title\": \"Not authenticated\"}}');
